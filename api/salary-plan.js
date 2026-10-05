@@ -8,6 +8,8 @@
 // output-token cap -> log the exchange to Supabase -> return the plan plus
 // a live aggregate stat computed from that same table.
 
+export const maxDuration = 30
+
 const GEMINI_MODEL = 'gemini-3.8-flash'
 const MAX_OUTPUT_TOKENS = 300
 const REQUEST_CAP_PER_VISITOR = 5
@@ -68,7 +70,7 @@ async function insertRequest(supabaseUrl, serviceKey, row) {
   })
 }
 
-const RETRY_DELAYS_MS = [1000, 2500, 5000]
+const RETRY_DELAYS_MS = [2000, 4000, 8000]
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
