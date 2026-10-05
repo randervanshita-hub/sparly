@@ -2,9 +2,11 @@ import { motion } from 'framer-motion'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getMonthlyRecommendation } from '../../../lib/aiCoach'
+import { useProfile } from '../../context/ProfileContext'
 
 export function AIRecommendationCard() {
-  const rec = getMonthlyRecommendation()
+  const { model } = useProfile()
+  const rec = getMonthlyRecommendation(model)
 
   return (
     <motion.div

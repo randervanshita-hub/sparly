@@ -1,13 +1,15 @@
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
-import { demoCalendar } from '../../../lib/demoData'
 import { formatINR } from '../../../hooks/useCountUp'
+import { useProfile } from '../../context/ProfileContext'
 
 export function MiniCalendar() {
+  const { model } = useProfile()
+
   return (
     <div className="flex flex-col gap-4 rounded-3xl border border-hairline bg-card p-6">
       <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted">Coming up</p>
       <ul className="flex flex-col gap-3.5">
-        {demoCalendar.map((event) => {
+        {model.calendar.map((event) => {
           const date = new Date(event.date)
           const day = date.toLocaleDateString('en-IN', { day: '2-digit' })
           const month = date.toLocaleDateString('en-IN', { month: 'short' }).toUpperCase()

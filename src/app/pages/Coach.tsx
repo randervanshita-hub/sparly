@@ -19,7 +19,7 @@ const SUGGESTED_PROMPTS = [
 ]
 
 export function Coach() {
-  const { displayName } = useProfile()
+  const { displayName, model } = useProfile()
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -51,7 +51,7 @@ export function Coach() {
     setTyping(true)
 
     window.setTimeout(() => {
-      const response = answerCoachPrompt(trimmed)
+      const response = answerCoachPrompt(model, trimmed)
       setMessages((prev) => [
         ...prev,
         { id: `a_${Date.now()}`, role: 'assistant', content: response.content, quickReplies: response.quickReplies },

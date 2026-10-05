@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, TrendingUp, Circle, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '../components/PageHeader'
-import { getInsights, getWeeklyBrief } from '../../lib/aiCoach'
-import { formatINR } from '../../hooks/useCountUp'
+import { getInsights, getPlanRecap } from '../../lib/aiCoach'
 import type { Insight } from '../../lib/types'
+import { useProfile } from '../context/ProfileContext'
 
 const SEVERITY_STYLES: Record<Insight['severity'], { icon: typeof TrendingUp; color: string }> = {
   positive: { icon: TrendingUp, color: '#FF9A55' },
@@ -13,8 +13,9 @@ const SEVERITY_STYLES: Record<Insight['severity'], { icon: typeof TrendingUp; co
 }
 
 export function Insights() {
-  const insights = getInsights()
-  const brief = getWeeklyBrief()
+  const { model } = useProfile()
+  const insights = getInsights(model)
+  const recap = getPlanRecap(model)
   const [applied, setApplied] = useState<string[]>([])
 
   return (
@@ -27,15 +28,13 @@ export function Insights() {
         transition={{ duration: 0.5 }}
         className="rounded-3xl border border-hairline bg-gradient-to-br from-card to-elevated p-6 sm:p-7"
       >
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.1em] text-orange-soft">Your weekly money brief</p>
-        <p className="mb-5 text-sm leading-relaxed text-cream/90 sm:text-base">
-          You spent ₹{formatINR(brief.spent)} this week — ₹{formatINR(brief.expectedPace - brief.spent)} below your expected pace.
-        </p>
+        <p className="mb-4 text-xs font-medium uppercase tracking-[0.1em] text-orange-soft">Your plan at a glance</p>
+        <p className="mb-5 text-sm leading-relaxed text-cream/90 sm:text-base">{recap.headline}</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <p className="mb-2 text-xs font-medium text-muted">Good</p>
             <ul className="flex flex-col gap-1.5">
-              {brief.good.map((g) => (
+              {recap.good.map((g) => (
                 <li key={g} className="flex items-center gap-1.5 text-sm text-cream/90">
                   <Check size={13} className="shrink-0 text-orange-soft" /> {g}
                 </li>
@@ -45,7 +44,8 @@ export function Insights() {
           <div>
             <p className="mb-2 text-xs font-medium text-muted">Watch</p>
             <ul className="flex flex-col gap-1.5">
-              {brief.watch.map((w) => (
+              {recap.watch.length === 0 && <li className="text-sm text-muted">Nothing to flag right now.</li>}
+              {recap.watch.map((w) => (
                 <li key={w} className="flex items-center gap-1.5 text-sm text-cream/90">
                   <AlertTriangle size={13} className="shrink-0 text-orange-soft" /> {w}
                 </li>
@@ -54,7 +54,7 @@ export function Insights() {
           </div>
           <div>
             <p className="mb-2 text-xs font-medium text-muted">Next</p>
-            <p className="text-sm text-cream/90">{brief.next}</p>
+            <p className="text-sm text-cream/90">{recap.next}</p>
           </div>
         </div>
       </motion.div>

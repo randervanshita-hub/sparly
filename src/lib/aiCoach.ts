@@ -1,94 +1,71 @@
-// Templated "AI" interpretation layer. Every number here is read from
-// financeEngine.ts — this file only explains, summarizes and recommends.
-// In production, this is where a real LLM call would slot in, fed the
-// same computed facts (never raw access to invent numbers).
-import {
-  getCashFlow,
-  getDiningAverage,
-  getFinancialHealth,
-  getMoneyPlan,
-  getSafeToSpend,
-  getSavingsRate,
-  projectGoalCompletion,
-  runScenario,
-} from './financeEngine'
-import { demoGoals, demoSubscriptions } from './demoData'
-import type { Insight } from './types'
+// Templated "AI" interpretation layer. Every number here comes from a
+// FinancialModel built in userModel.ts/financeEngine.ts — this file only
+// explains, summarizes and recommends. In production, this is where a real
+// LLM call would slot in, fed the same computed facts (never raw access to
+// invent numbers).
+import { projectGoalCompletion, runScenario, type ScenarioInput } from './financeEngine'
+import type { FinancialModel } from './userModel'
+import type { Goal, Insight } from './types'
 import { formatINR } from '../hooks/useCountUp'
 
-export function getMonthlyRecommendation(): { headline: string; body: string } {
-  const safe = getSafeToSpend()
-  const plan = getMoneyPlan()
-  const savings = plan.find((p) => p.key === 'savings')!
-  const investments = plan.find((p) => p.key === 'investments')!
+export function getMonthlyRecommendation(model: FinancialModel): { headline: string; body: string } {
+  const savings = model.moneyPlan.find((p) => p.key === 'savings')!
+  const investments = model.moneyPlan.find((p) => p.key === 'investments')!
+  const primaryGoal = model.goals[0]
 
   return {
-    headline: "You're in a comfortable position this month.",
-    body: `You can spend approximately ₹${formatINR(safe.amount)} while staying on track with your savings and investment goals. I'd recommend putting ₹${formatINR(savings.amount)} toward your emergency fund and ₹${formatINR(investments.amount)} toward your SIPs before increasing discretionary spending.`,
+    headline: "Here's your plan for this cycle.",
+    body: `You have approximately ₹${formatINR(model.safeToSpend.amount)} to spend freely while staying on track. I'd recommend putting ₹${formatINR(savings.amount)} toward${primaryGoal ? ` ${primaryGoal.name.toLowerCase()}` : ' savings'} and ₹${formatINR(investments.amount)} toward investments before increasing discretionary spending.`,
   }
 }
 
-export function getSafeToSpendExplanation(): string {
-  const safe = getSafeToSpend()
-  return `I started from your liquid balance across accounts, then subtracted the ₹${formatINR(safe.upcomingCommitments)} in bills and EMIs due before your next salary, ₹${formatINR(safe.goalContribution)} already earmarked for your goals this month, and a ₹${formatINR(safe.recommendedBuffer)} buffer so a surprise expense doesn't put you behind. What's left — ₹${formatINR(safe.amount)} — is yours to spend freely for the next ${safe.daysToSalary} days.`
+export function getSafeToSpendExplanation(model: FinancialModel): string {
+  const s = model.safeToSpend
+  return `Your plan sets aside ₹${formatINR(s.upcomingCommitments)} for essentials and debt, ₹${formatINR(s.goalContribution)} for savings and investments, and a ₹${formatINR(s.recommendedBuffer)} buffer — what's left, ₹${formatINR(s.amount)}, is your lifestyle allowance for the next ${s.daysToSalary} days. Sparly doesn't track your transactions automatically yet, so this is your full allowance for the cycle, not allowance-minus-what-you've-spent.`
 }
 
-export function getCategoryExplanation(key: string): string {
-  const plan = getMoneyPlan()
-  const category = plan.find((c) => c.key === key)
+export function getCategoryExplanation(model: FinancialModel, key: string): string {
+  const category = model.moneyPlan.find((c) => c.key === key)
   if (!category) return ''
-  if (key === 'buffer') {
-    return `This is money not yet committed to anything — after essentials, savings and investments are set aside, ₹${formatINR(category.amount)} is left as flexibility for the unexpected.`
-  }
-  const diff = category.spent - category.amount
-  if (key === 'lifestyle' && diff > 0) {
-    return `Lifestyle spending is ₹${formatINR(diff)} above your planned amount this month. This is still manageable because your emergency fund contribution is ahead of schedule.`
-  }
-  if (diff > 0) {
-    return `You've spent ₹${formatINR(diff)} more than planned in ${category.label.toLowerCase()} this month. Worth keeping an eye on next month.`
-  }
-  return `${category.label} is tracking right on plan this month — no action needed.`
-}
-
-export function getDiningInsight(): { what: string; why: string; action: string } {
-  const d = getDiningAverage()
-  return {
-    what: `Dining spend increased ${d.percentIncrease}% to ₹${formatINR(d.thisMonth)}, up from your usual ₹${formatINR(d.average)}.`,
-    why: 'At this pace, your monthly savings rate will fall below your target.',
-    action: 'Reducing dining spend by ₹2,000 next month gets you back on track.',
+  switch (key) {
+    case 'essentials':
+      return `Rent, EMIs, bills and other fixed costs you told Sparly about — ₹${formatINR(category.amount)} that happens every cycle regardless of your choices.`
+    case 'savings':
+      return `Money set aside toward your goals — ₹${formatINR(category.amount)} this cycle, split across ${model.goals.length} goal${model.goals.length === 1 ? '' : 's'}.`
+    case 'investments':
+      return `Your recommended recurring investment contribution — ₹${formatINR(category.amount)} this cycle, based on a balanced allocation.`
+    case 'lifestyle':
+      return `Your discretionary allowance for everything else — food, shopping, entertainment — ₹${formatINR(category.amount)} this cycle.`
+    case 'buffer':
+      return `Money not yet committed to anything — after essentials, savings and investments are set aside, ₹${formatINR(category.amount)} is left as flexibility for the unexpected.`
+    default:
+      return `${category.label} is ₹${formatINR(category.amount)} this cycle.`
   }
 }
 
-export function getGoalExplanation(goalId: string, newContribution?: number): string {
-  const goal = demoGoals.find((g) => g.id === goalId)
-  if (!goal) return ''
-  const current = projectGoalCompletion(goal)
+export function getGoalExplanation(goal: Goal, today: Date, newContribution?: number): string {
+  const current = projectGoalCompletion(goal, today)
   if (!newContribution || newContribution === goal.monthlyContribution) {
-    return `You are currently on track to reach your ${goal.name.toLowerCase()} goal by ${current}.`
+    return `At ₹${formatINR(goal.monthlyContribution)}/month, you're projected to reach your ${goal.name.toLowerCase()} goal by ${current}.`
   }
-  const updated = projectGoalCompletion(goal, newContribution)
-  return `You are currently on track to reach your ${goal.name.toLowerCase()} goal by ${current}. Increasing your monthly contribution to ₹${formatINR(newContribution)} would bring it forward to ${updated}.`
+  const updated = projectGoalCompletion(goal, today, newContribution)
+  return `At ₹${formatINR(goal.monthlyContribution)}/month you'd reach your ${goal.name.toLowerCase()} goal by ${current}. Increasing your monthly contribution to ₹${formatINR(newContribution)} would bring it forward to ${updated}.`
 }
 
-export function getHealthComponentExplanation(key: string): string {
-  const health = getFinancialHealth()
-  const component = health.components.find((c) => c.key === key)
+export function getHealthComponentExplanation(model: FinancialModel, key: string): string {
+  const component = model.health.components.find((c) => c.key === key)
   if (!component) return ''
   return `${component.explanation} Your score could increase by approximately 5 points if you maintain this trend for another 3 months.`
 }
 
-export function explainWhy(topic: string): string {
+export function explainWhy(model: FinancialModel, topic: string): string {
   switch (topic) {
     case 'safe-to-spend':
-      return getSafeToSpendExplanation()
-    case 'savings-rate': {
-      const rate = getSavingsRate()
-      return `You're putting ${rate}% of your income toward savings and investments combined. That's calculated from your actual monthly contributions, not an estimate — it updates the moment those amounts change.`
-    }
-    case 'health-score': {
-      const health = getFinancialHealth()
-      return `Your score is ${health.score}/100 (${health.label}) — an average of five components: emergency fund progress, savings rate, debt management, goal progress and spending stability. It's a Sparly planning metric, not a credit score.`
-    }
+      return getSafeToSpendExplanation(model)
+    case 'savings-rate':
+      return `You're putting ${model.savingsRate}% of your income toward savings and investments combined. That's calculated from your actual plan, not an estimate — it updates the moment your income or expenses change.`
+    case 'health-score':
+      return `Your score is ${model.health.score}/100 (${model.health.label}) — an average of five components: emergency fund progress, savings rate, debt management, goal progress and expense coverage. It's a Sparly planning metric, not a credit score.`
     default:
       return "I don't have enough context to explain that yet — try asking from the screen where you saw it."
   }
@@ -99,10 +76,11 @@ interface CoachResponse {
   quickReplies?: string[]
 }
 
-export function answerCoachPrompt(prompt: string): CoachResponse {
+export function answerCoachPrompt(model: FinancialModel, prompt: string): CoachResponse {
   const p = prompt.toLowerCase()
-  const safe = getSafeToSpend()
-  const cashFlow = getCashFlow()
+  const safe = model.safeToSpend
+  const buffer = model.moneyPlan.find((c) => c.key === 'buffer')?.amount ?? 0
+  const primaryGoal = model.goals[0]
 
   if (p.includes('vacation') || p.includes('afford a') || (p.includes('afford') && p.includes('₹'))) {
     const amountMatch = prompt.match(/₹\s?([\d,]+)/)
@@ -110,71 +88,88 @@ export function answerCoachPrompt(prompt: string): CoachResponse {
     const wouldDip = amount > safe.amount
     return {
       content: wouldDip
-        ? `Yes — but I'd recommend waiting until your next salary. You currently have ₹${formatINR(safe.amount)} of flexible cash available, but ₹${formatINR(safe.upcomingCommitments)} of upcoming commitments and ₹${formatINR(safe.goalContribution)} of goal contributions are already planned. If you spend ₹${formatINR(amount)} now, your emergency-fund contribution would fall below your monthly target. Want me to show you what happens under both options?`
-        : `Yes, comfortably. After your upcoming commitments and goal contributions, you'd still have ₹${formatINR(safe.amount - amount)} of buffer left this cycle.`,
+        ? `It would stretch your plan. You have ₹${formatINR(safe.amount)} of lifestyle allowance this cycle, with ₹${formatINR(safe.goalContribution)} already earmarked for your goals. Spending ₹${formatINR(amount)} now would mean dipping into your buffer. Want me to show you what happens if you wait until next cycle instead?`
+        : `Yes, comfortably. After your essentials and goal contributions, you'd still have ₹${formatINR(safe.amount - amount)} of lifestyle allowance left this cycle.`,
       quickReplies: ['Show me', 'Ask another question'],
     }
   }
 
   if (p.includes('spend more') || p.includes('why did i spend')) {
-    const d = getDiningAverage()
     return {
-      content: `Your dining spend is the main driver — ₹${formatINR(d.thisMonth)} this month versus your usual ₹${formatINR(d.average)}, a ${d.percentIncrease}% increase. Everything else is close to your normal pattern.`,
-      quickReplies: ['How do I fix this?', 'Ask another question'],
+      content: "I don't have your transaction history yet, so I can't compare month to month. Once Sparly can see your actual spending, I'll be able to spot changes like this automatically.",
+      quickReplies: ['Ask another question'],
     }
   }
 
   if (p.includes('save from my next salary') || p.includes('how much should i save')) {
-    const plan = getMoneyPlan()
-    const savings = plan.find((c) => c.key === 'savings')!
-    const investments = plan.find((c) => c.key === 'investments')!
+    const savings = model.moneyPlan.find((c) => c.key === 'savings')!
+    const investments = model.moneyPlan.find((c) => c.key === 'investments')!
     return {
-      content: `Based on your current plan, I'd suggest ₹${formatINR(savings.amount)} toward savings and ₹${formatINR(investments.amount)} toward investments from your next salary — that keeps your savings rate at ${getSavingsRate()}%, right around your target.`,
+      content: `Based on your current plan, I'd suggest ₹${formatINR(savings.amount)} toward savings and ₹${formatINR(investments.amount)} toward investments from your next income — that keeps your savings rate at ${model.savingsRate}%.`,
       quickReplies: ['Increase my SIP instead', 'Ask another question'],
     }
   }
 
   if (p.includes('increase my sip') || p.includes('increase the sip')) {
-    const result = runScenario({ salary: 80000, rent: 18000, investment: 17000, vacation: 0, loanRepayment: 9800 })
+    const baseInvestment = model.moneyPlan.find((c) => c.key === 'investments')?.amount ?? 0
+    const scenario: ScenarioInput = {
+      salary: model.profile.takeHomeIncome,
+      essentials: model.profile.fixedExpenses,
+      investment: baseInvestment + 5000,
+      vacation: 0,
+      loanRepayment: model.profile.monthlyDebt,
+    }
+    const result = runScenario(scenario, model.profile, primaryGoal, model.today)
     return {
-      content: `Increasing your SIP by ₹5,000/month reduces this month's flexible spending by the same amount, but brings your emergency fund goal forward to roughly ${result.goalCompletionMonths} months from now. Want to see the full scenario in the simulator?`,
+      content: `Increasing your investment contribution by ₹5,000/month reduces this cycle's lifestyle allowance by the same amount${primaryGoal ? `, but brings your ${primaryGoal.name.toLowerCase()} goal forward to roughly ${result.goalCompletionMonths} months from now` : ''}. Want to see the full scenario in the simulator?`,
       quickReplies: ['Open simulator', 'Ask another question'],
     }
   }
 
   if (p.includes('new phone') || p.includes('buy a')) {
     return {
-      content: `A one-time purchase like this is usually fine as long as it comes out of your lifestyle allocation rather than your buffer. Right now you have ₹${formatINR(Math.max(cashFlow, 0))} of unallocated cash flow this month — a phone under that amount wouldn't affect your goals.`,
+      content: `A one-time purchase like this usually fits if it comes out of your lifestyle allowance rather than your buffer. Right now you have ₹${formatINR(safe.amount)} of lifestyle allowance this cycle — a purchase under that amount shouldn't affect your goals.`,
       quickReplies: ['Ask another question'],
     }
   }
 
   if (p.includes('lower this month') || p.includes('safe-to-spend amount lower') || p.includes('safe to spend amount lower')) {
     return {
-      content: getSafeToSpendExplanation(),
+      content: getSafeToSpendExplanation(model),
       quickReplies: ['Ask another question'],
     }
   }
 
-  if (p.includes('emergency fund goal') || p.includes('how long will it take')) {
-    const goal = demoGoals.find((g) => g.id === 'goal_emergency')!
+  if (p.includes('emergency fund') || p.includes('how long will it take')) {
+    const goal = model.goals.find((g) => g.name.toLowerCase().includes('emergency')) ?? primaryGoal
+    if (!goal) {
+      return { content: "You don't have an emergency fund goal set up yet — add one from the Goals page.", quickReplies: ['Ask another question'] }
+    }
     return {
-      content: getGoalExplanation(goal.id),
+      content: getGoalExplanation(goal, model.today),
       quickReplies: ['Increase my contribution', 'Ask another question'],
     }
   }
 
   if (p.includes('salary increase') || p.includes('salary increases')) {
-    const result = runScenario({ salary: 88000, rent: 18000, investment: 12000, vacation: 0, loanRepayment: 9800 })
+    const income = model.profile.takeHomeIncome
+    const scenario: ScenarioInput = {
+      salary: Math.round(income * 1.1),
+      essentials: model.profile.fixedExpenses,
+      investment: model.moneyPlan.find((c) => c.key === 'investments')?.amount ?? 0,
+      vacation: 0,
+      loanRepayment: model.profile.monthlyDebt,
+    }
+    const result = runScenario(scenario, model.profile, primaryGoal, model.today)
     return {
-      content: `A 10% raise (≈₹88,000) would add roughly ₹8,000/month of flexible cash. If you split it evenly between savings and lifestyle, your 12-month savings would grow to about ₹${formatINR(result.savings12mo)}, with your emergency fund reached around ${result.goalCompletionMonths} months sooner.`,
+      content: `A 10% raise (≈₹${formatINR(scenario.salary)}) would add roughly ₹${formatINR(Math.round(income * 0.1))}/month of flexible cash. Split toward savings and lifestyle, your 12-month savings would grow to about ₹${formatINR(result.savings12mo)}.`,
       quickReplies: ['Open simulator', 'Ask another question'],
     }
   }
 
   if (p.includes('pay off') && (p.includes('loan') || p.includes('debt'))) {
     return {
-      content: `Your car loan carries a ${9.2}% interest rate. Your current SIPs are projected to return more than that over time, so continuing to invest while paying the standard EMI is usually the stronger move — paying it off faster mainly helps if the rate rises or you want the peace of mind.`,
+      content: `Paying down debt faster guarantees you avoid future interest, while investing offers potentially higher but uncertain returns. If your current payments already fit comfortably in your plan — and yours do, with ₹${formatINR(buffer)} of buffer left over — continuing to invest alongside your regular payments is usually the balanced choice.`,
       quickReplies: ['Ask another question'],
     }
   }
@@ -185,72 +180,83 @@ export function answerCoachPrompt(prompt: string): CoachResponse {
   }
 }
 
-export function getInsights(): Insight[] {
-  const dining = getDiningAverage()
-  const emergencyGoal = demoGoals.find((g) => g.id === 'goal_emergency')!
-  const emergencyPercent = Math.round((emergencyGoal.currentAmount / emergencyGoal.targetAmount) * 100)
-  const unused = demoSubscriptions.filter((s) => !s.confirmed)
-  const idleCash = 18000
-  const savingsRate = getSavingsRate()
+export function getInsights(model: FinancialModel): Insight[] {
+  const emergencyGoal = model.goals.find((g) => g.name.toLowerCase().includes('emergency'))
+  const buffer = model.moneyPlan.find((c) => c.key === 'buffer')?.amount ?? 0
+  const lifestyle = model.moneyPlan.find((c) => c.key === 'lifestyle')?.amount ?? 0
+  const debtRatio = model.profile.takeHomeIncome > 0 ? model.profile.monthlyDebt / model.profile.takeHomeIncome : 0
 
-  return [
-    {
-      id: 'ins_dining',
-      title: 'Spending changed this month',
-      severity: 'watch',
-      what: `Dining spend increased ${dining.percentIncrease}% to ₹${formatINR(dining.thisMonth)}.`,
-      why: 'At this pace, your monthly savings rate will fall below your target.',
-      action: 'Reducing dining spend by ₹2,000 next month gets you back on track.',
-    },
-    {
-      id: 'ins_idle',
-      title: 'Idle cash sitting in your account',
-      severity: 'neutral',
-      what: `You have ₹${formatINR(idleCash)} sitting idle beyond your buffer.`,
-      why: "Cash beyond your buffer isn't working toward any goal or earning returns.",
-      action: 'Consider directing it toward your emergency fund or a short-term investment.',
-    },
-    {
-      id: 'ins_emergency',
-      title: 'Emergency fund progress',
-      severity: 'positive',
-      what: `Your emergency fund is ${emergencyPercent}% complete.`,
-      why: 'A full emergency fund is the single biggest lever for your financial health score.',
-      action: 'Stay the course — at your current contribution you’ll finish on schedule.',
-    },
-    {
-      id: 'ins_subs',
-      title: `${unused.length} subscriptions you haven't used recently`,
-      severity: 'watch',
-      what: `${unused.map((u) => u.label).join(' and ')} haven't been used in over a month.`,
-      why: `Together they cost ₹${formatINR(unused.reduce((s, u) => s + u.amount, 0))}/month.`,
-      action: 'Review whether to keep, pause or cancel them.',
-    },
+  const insights: Insight[] = [
     {
       id: 'ins_savings',
-      title: 'Savings rate this month',
-      severity: savingsRate >= 20 ? 'positive' : 'watch',
-      what: `You're saving and investing ${savingsRate}% of your income.`,
-      why: savingsRate >= 20 ? "That's a healthy, sustainable rate." : 'This is slightly below the 20–25% most plans target.',
-      action: savingsRate >= 20 ? 'No changes needed — keep this up.' : 'Consider trimming lifestyle spend by 5% to close the gap.',
+      title: 'Savings rate this cycle',
+      severity: model.savingsRate >= 20 ? 'positive' : 'watch',
+      what: `You're saving and investing ${model.savingsRate}% of your income.`,
+      why: model.savingsRate >= 20 ? "That's a healthy, sustainable rate." : 'This is below the 20–25% most plans target.',
+      action: model.savingsRate >= 20 ? 'No changes needed — keep this up.' : 'Consider trimming lifestyle spend to close the gap.',
+    },
+    {
+      id: 'ins_debt',
+      title: 'Debt load',
+      severity: debtRatio > 0.3 ? 'watch' : debtRatio > 0 ? 'neutral' : 'positive',
+      what: debtRatio > 0 ? `Debt payments are ${Math.round(debtRatio * 100)}% of your income.` : "You're not carrying any monthly debt.",
+      why: debtRatio > 0.3 ? 'Above 30% starts to limit your flexibility.' : 'This stays well within a healthy range.',
+      action: debtRatio > 0.3 ? 'Consider prioritizing debt payoff before increasing lifestyle spend.' : 'No action needed.',
+    },
+    {
+      id: 'ins_buffer',
+      title: 'Your buffer this cycle',
+      severity: 'neutral',
+      what: `₹${formatINR(buffer)} is unallocated after essentials, savings and investments.`,
+      why: "This is your flexibility for the unexpected — it's separate from your ₹" + formatINR(lifestyle) + ' lifestyle allowance.',
+      action: 'Consider directing part of it toward your fastest-growing goal.',
     },
   ]
+
+  if (emergencyGoal) {
+    const percent = Math.round((emergencyGoal.currentAmount / emergencyGoal.targetAmount) * 100)
+    insights.push({
+      id: 'ins_emergency',
+      title: 'Emergency fund progress',
+      severity: percent >= 70 ? 'positive' : 'watch',
+      what: `Your emergency fund is ${percent}% complete.`,
+      why: 'A full emergency fund is the single biggest lever for your financial health score.',
+      action: percent >= 70 ? 'Stay the course — you’re nearly there.' : 'Consider directing more of your buffer here.',
+    })
+  }
+
+  const behindGoal = [...model.goals].sort((a, b) => a.currentAmount / a.targetAmount - b.currentAmount / b.targetAmount)[0]
+  if (behindGoal && behindGoal.id !== emergencyGoal?.id) {
+    const percent = Math.round((behindGoal.currentAmount / behindGoal.targetAmount) * 100)
+    insights.push({
+      id: 'ins_behind_goal',
+      title: `${behindGoal.name} needs attention`,
+      severity: percent < 20 ? 'watch' : 'neutral',
+      what: `${behindGoal.name} is ${percent}% funded.`,
+      why: `At ₹${formatINR(behindGoal.monthlyContribution)}/month, this is your slowest-moving goal.`,
+      action: 'Consider increasing its monthly contribution from the Goals page.',
+    })
+  }
+
+  return insights
 }
 
-export function getWeeklyBrief() {
+export function getPlanRecap(model: FinancialModel) {
+  const lifestyle = model.moneyPlan.find((c) => c.key === 'lifestyle')?.amount ?? 0
+  const savings = model.moneyPlan.find((c) => c.key === 'savings')?.amount ?? 0
+  const investments = model.moneyPlan.find((c) => c.key === 'investments')?.amount ?? 0
+
   return {
-    spent: 8420,
-    expectedPace: 9040,
-    good: ['Savings on track', 'No unusual large purchases'],
-    watch: ['Dining spending +18%'],
-    next: 'Keep discretionary spending below ₹3,200 next week.',
+    headline: `This cycle: ₹${formatINR(lifestyle)} for lifestyle, ₹${formatINR(savings + investments)} toward your goals and investments.`,
+    good: model.savingsRate >= 20 ? ['Savings rate on target', 'Emergency fund building steadily'] : ['Plan is set up and tracking'],
+    watch: model.savingsRate < 20 ? ['Savings rate below 20% target'] : [],
+    next: 'Sparly will start comparing your actual spending against this plan once transaction tracking is available.',
   }
 }
 
-export function getPersonalizedOpportunity(): string {
-  const health = getFinancialHealth()
-  const emergency = health.components.find((c) => c.key === 'emergency')!
-  const debt = health.components.find((c) => c.key === 'debt')!
+export function getPersonalizedOpportunity(model: FinancialModel): string {
+  const emergency = model.health.components.find((c) => c.key === 'emergency')!
+  const debt = model.health.components.find((c) => c.key === 'debt')!
 
   if (debt.score < 60) {
     return 'Your priority is balancing debt repayment with maintaining a basic emergency fund.'

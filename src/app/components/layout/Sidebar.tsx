@@ -3,11 +3,9 @@ import { LogOut } from 'lucide-react'
 import { Logo } from '../../../components/Logo'
 import { PRIMARY_NAV, SECONDARY_NAV } from './navItems'
 import { useProfile } from '../../context/ProfileContext'
-import { getFinancialHealth } from '../../../lib/financeEngine'
 
 export function Sidebar() {
-  const { logout, displayName } = useProfile()
-  const health = getFinancialHealth()
+  const { logout, displayName, model } = useProfile()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -79,7 +77,7 @@ export function Sidebar() {
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-cream">{displayName}</p>
             <p className="truncate text-xs text-muted">
-              Financial Health: <span className="text-orange-soft">{health.label}</span>
+              Financial Health: <span className="text-orange-soft">{model.health.label}</span>
             </p>
           </div>
         </NavLink>

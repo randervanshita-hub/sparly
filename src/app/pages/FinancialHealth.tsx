@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { PageHeader } from '../components/PageHeader'
 import { Modal } from '../components/ui/Modal'
-import { getFinancialHealth } from '../../lib/financeEngine'
 import { getHealthComponentExplanation } from '../../lib/aiCoach'
+import { useProfile } from '../context/ProfileContext'
 
 export function FinancialHealth() {
-  const health = getFinancialHealth()
+  const { model } = useProfile()
+  const health = model.health
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const active = health.components.find((c) => c.key === activeKey)
 
@@ -56,7 +57,7 @@ export function FinancialHealth() {
       </div>
 
       <Modal open={!!active} onClose={() => setActiveKey(null)} title={active?.label}>
-        {active && <p className="text-sm leading-relaxed text-cream/90">{getHealthComponentExplanation(active.key)}</p>}
+        {active && <p className="text-sm leading-relaxed text-cream/90">{getHealthComponentExplanation(model, active.key)}</p>}
       </Modal>
     </div>
   )

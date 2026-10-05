@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabaseClient'
 import type { FinancialProfile } from '../../lib/types'
+import { buildFinancialModel, type FinancialModel } from '../../lib/userModel'
 
 const DEFAULT_PROFILE: FinancialProfile = {
   takeHomeIncome: 80000,
@@ -62,6 +63,7 @@ function profileToRow(p: FinancialProfile) {
 
 interface ProfileContextValue {
   profile: FinancialProfile
+  model: FinancialModel
   onboarded: boolean
   loading: boolean
   session: Session | null
@@ -174,10 +176,16 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const emailLocalPart = session?.user.email?.split('@')[0] ?? ''
   const displayName = emailLocalPart ? emailLocalPart[0].toUpperCase() + emailLocalPart.slice(1) : 'there'
 
+  // Recomputed only when the underlying profile actually changes, not on
+  // every render — every page reads derived numbers from this one model
+  // instead of recomputing (or worse, reaching for shared demo fixtures).
+  const model = useMemo(() => buildFinancialModel(profile), [profile])
+
   return (
     <ProfileContext.Provider
       value={{
         profile,
+        model,
         onboarded,
         loading,
         session,

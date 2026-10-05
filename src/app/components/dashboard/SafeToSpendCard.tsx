@@ -1,15 +1,16 @@
 import { motion } from 'framer-motion'
-import { getSafeToSpend } from '../../../lib/financeEngine'
 import { getSafeToSpendExplanation } from '../../../lib/aiCoach'
 import { formatINR, useCountUp } from '../../../hooks/useCountUp'
 import { ExplainPopover } from '../ui/ExplainPopover'
+import { useProfile } from '../../context/ProfileContext'
 
 export function SafeToSpendCard() {
-  const safe = getSafeToSpend()
+  const { model } = useProfile()
+  const safe = model.safeToSpend
   const amount = useCountUp(safe.amount, { start: true, duration: 1.3, delay: 0.2 })
 
   const rows = [
-    { label: 'Next salary', value: `${safe.daysToSalary} days` },
+    { label: 'Next income', value: `${safe.daysToSalary} days` },
     { label: 'Upcoming commitments', value: `₹${formatINR(safe.upcomingCommitments)}` },
     { label: 'Goal contribution', value: `₹${formatINR(safe.goalContribution)}` },
     { label: 'Recommended buffer', value: `₹${formatINR(safe.recommendedBuffer)}` },
@@ -25,7 +26,7 @@ export function SafeToSpendCard() {
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.1em] text-muted">Safe to spend</p>
         <p className="mt-2 text-4xl font-semibold tabular-nums text-cream">₹{formatINR(amount)}</p>
-        <p className="mt-1 text-sm text-muted">until your next salary</p>
+        <p className="mt-1 text-sm text-muted">this cycle</p>
       </div>
 
       <div className="flex flex-col gap-2.5 border-t border-hairline pt-4">
@@ -39,7 +40,7 @@ export function SafeToSpendCard() {
 
       <ExplainPopover
         question="Why is my safe-to-spend amount what it is?"
-        explanation={getSafeToSpendExplanation}
+        explanation={() => getSafeToSpendExplanation(model)}
         trigger="Why this number?"
       />
     </motion.div>

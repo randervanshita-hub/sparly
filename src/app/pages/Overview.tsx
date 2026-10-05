@@ -5,15 +5,14 @@ import { AIRecommendationCard } from '../components/dashboard/AIRecommendationCa
 import { SafeToSpendCard } from '../components/dashboard/SafeToSpendCard'
 import { MiniCalendar } from '../components/dashboard/MiniCalendar'
 import { AllocationBar } from '../components/ui/AllocationBar'
-import { getFinancialHealth, getMoneyPlan } from '../../lib/financeEngine'
 import { getPersonalizedOpportunity } from '../../lib/aiCoach'
 import { useProfile } from '../context/ProfileContext'
 
 export function Overview() {
-  const { displayName } = useProfile()
-  const plan = getMoneyPlan()
-  const health = getFinancialHealth()
-  const opportunity = getPersonalizedOpportunity()
+  const { displayName, model } = useProfile()
+  const plan = model.moneyPlan
+  const health = model.health
+  const opportunity = getPersonalizedOpportunity(model)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 

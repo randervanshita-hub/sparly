@@ -4,10 +4,12 @@ import { Shield, Plane, Laptop, Home, Car, Target } from 'lucide-react'
 import type { Goal } from '../../../lib/types'
 import { getGoalExplanation } from '../../../lib/aiCoach'
 import { formatINR } from '../../../hooks/useCountUp'
+import { useProfile } from '../../context/ProfileContext'
 
 const ICONS = { shield: Shield, plane: Plane, laptop: Laptop, home: Home, car: Car, target: Target }
 
 export function GoalCard({ goal, delay = 0 }: { goal: Goal; delay?: number }) {
+  const { model } = useProfile()
   const [contribution, setContribution] = useState(goal.monthlyContribution)
   const Icon = ICONS[goal.icon]
   const percent = Math.min(Math.round((goal.currentAmount / goal.targetAmount) * 100), 100)
@@ -54,7 +56,7 @@ export function GoalCard({ goal, delay = 0 }: { goal: Goal; delay?: number }) {
           id={`contrib-${goal.id}`}
           type="range"
           min={1000}
-          max={goal.monthlyContribution * 3}
+          max={Math.max(goal.monthlyContribution * 3, 2000)}
           step={500}
           value={contribution}
           onChange={(e) => setContribution(Number(e.target.value))}
@@ -63,7 +65,7 @@ export function GoalCard({ goal, delay = 0 }: { goal: Goal; delay?: number }) {
       </div>
 
       <div className="rounded-xl border border-hairline bg-elevated/50 p-3.5">
-        <p className="text-xs leading-relaxed text-muted">{getGoalExplanation(goal.id, changed ? contribution : undefined)}</p>
+        <p className="text-xs leading-relaxed text-muted">{getGoalExplanation(goal, model.today, changed ? contribution : undefined)}</p>
       </div>
     </motion.div>
   )

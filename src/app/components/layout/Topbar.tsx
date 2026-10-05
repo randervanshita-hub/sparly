@@ -4,14 +4,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Menu, X, LogOut } from 'lucide-react'
 import { Logo } from '../../../components/Logo'
 import { PRIMARY_NAV, SECONDARY_NAV } from './navItems'
-import { getFinancialHealth } from '../../../lib/financeEngine'
 import { useProfile } from '../../context/ProfileContext'
 
 export function Topbar() {
   const [open, setOpen] = useState(false)
-  const health = getFinancialHealth()
   const navigate = useNavigate()
-  const { logout } = useProfile()
+  const { logout, model } = useProfile()
 
   const handleLogout = async () => {
     setOpen(false)
@@ -27,7 +25,7 @@ export function Topbar() {
       </NavLink>
       <div className="flex items-center gap-3">
         <span className="hidden items-center gap-1.5 rounded-full border border-hairline px-3 py-1.5 text-xs text-muted sm:flex">
-          Health <span className="font-semibold text-orange-soft">{health.score}</span>
+          Health <span className="font-semibold text-orange-soft">{model.health.score}</span>
         </span>
         <button
           type="button"
