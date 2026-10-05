@@ -4,6 +4,7 @@ import { TrustStrip } from '../components/TrustStrip'
 import { FeatureCards } from '../components/FeatureCards'
 import { MoneyPlanSplit } from '../components/MoneyPlanSplit'
 import { SalaryAllocation } from '../components/SalaryAllocation'
+import { SalaryDemo } from '../components/SalaryDemo'
 import { ValueSection } from '../components/ValueSection'
 import { Plans } from '../components/Plans'
 import { Testimonials } from '../components/Testimonials'
@@ -21,6 +22,7 @@ export function Landing() {
         <FeatureCards />
         <MoneyPlanSplit />
         <SalaryAllocation />
+        <SalaryDemo />
         <ValueSection />
         <Plans />
         <Testimonials />
