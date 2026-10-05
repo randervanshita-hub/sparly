@@ -10,7 +10,7 @@
 
 export const maxDuration = 30
 
-const GEMINI_MODEL = 'gemini-3.8-flash-lite'
+const GEMINI_MODEL = 'gemini-flash-lite-latest'
 const MAX_OUTPUT_TOKENS = 300
 const REQUEST_CAP_PER_VISITOR = 5
 const CATEGORIES = ['rent', 'food', 'transport', 'shopping', 'other']
@@ -83,10 +83,7 @@ async function callGemini(apiKey, takeHome, spend) {
   const requestBody = JSON.stringify({
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents: [{ parts: [{ text: userPrompt }] }],
-    generationConfig: {
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
+    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
   })
 
   let lastError
