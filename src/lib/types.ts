@@ -1,18 +1,4 @@
-export interface User {
-  id: string
-  name: string
-  email: string
-  onboarded: boolean
-}
-
 export type IncomeFrequency = 'monthly' | 'biweekly' | 'weekly'
-
-export interface Income {
-  id: string
-  source: string
-  amount: number
-  frequency: IncomeFrequency
-}
 
 export type ExpenseCategory =
   | 'Food'
@@ -26,40 +12,6 @@ export type ExpenseCategory =
   | 'Rent'
   | 'Other'
 
-export interface Expense {
-  id: string
-  label: string
-  category: ExpenseCategory
-  amount: number
-  fixed: boolean
-}
-
-export interface Debt {
-  id: string
-  label: string
-  principal: number
-  remaining: number
-  emi: number
-  interestRate: number
-}
-
-export interface Account {
-  id: string
-  label: string
-  type: 'bank' | 'wallet'
-  balance: number
-}
-
-export interface Investment {
-  id: string
-  label: string
-  type: 'Equity' | 'Debt' | 'Cash'
-  invested: number
-  currentValue: number
-  monthlyContribution: number
-  goalId?: string
-}
-
 export interface Goal {
   id: string
   name: string
@@ -70,14 +22,8 @@ export interface Goal {
   monthlyContribution: number
 }
 
-export interface Subscription {
-  id: string
-  label: string
-  amount: number
-  cadence: 'monthly' | 'yearly'
-  confirmed: boolean
-  lastUsed?: string
-}
+export type TransactionSource = 'manual' | 'bank_sandbox'
+export type RecurrenceCadence = 'weekly' | 'monthly' | 'yearly'
 
 export interface Transaction {
   id: string
@@ -85,6 +31,18 @@ export interface Transaction {
   merchant: string
   category: ExpenseCategory
   amount: number
+  isRecurring: boolean
+  recurrence: RecurrenceCadence | null
+  source: TransactionSource
+}
+
+export interface LinkedAccount {
+  id: string
+  provider: 'setu_sandbox'
+  bankName: string
+  accountMask: string
+  status: 'active' | 'revoked'
+  linkedAt: string
 }
 
 export interface CalendarEvent {
