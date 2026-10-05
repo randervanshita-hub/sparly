@@ -13,10 +13,11 @@ export function Topbar() {
   const navigate = useNavigate()
   const { logout } = useProfile()
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setOpen(false)
-    logout()
+    // See Sidebar's handleLogout for why navigate happens before logout.
     navigate('/')
+    await logout()
   }
 
   return (

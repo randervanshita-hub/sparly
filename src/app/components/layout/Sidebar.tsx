@@ -6,13 +6,17 @@ import { useProfile } from '../../context/ProfileContext'
 import { getFinancialHealth } from '../../../lib/financeEngine'
 
 export function Sidebar() {
-  const { profile, logout } = useProfile()
+  const { logout, displayName } = useProfile()
   const health = getFinancialHealth()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    // Navigate away from the AppShell-guarded tree *before* clearing the
+    // session: otherwise AppShell's own "no session -> /app/auth" redirect
+    // fires at the same time as this one and can win the race, landing the
+    // user on the sign-in form instead of the marketing page.
     navigate('/')
+    await logout()
   }
 
   return (
@@ -70,10 +74,10 @@ export function Sidebar() {
       <div className="mx-3 mb-4 flex items-center gap-2 rounded-xl border border-hairline bg-white/[0.02] pr-2 transition-colors hover:bg-white/[0.04]">
         <NavLink to="/app/settings" className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange to-orange-soft text-sm font-semibold text-[#140a04]">
-            {profile ? 'V' : '?'}
+            {displayName[0]?.toUpperCase()}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-cream">Vanshita</p>
+            <p className="truncate text-sm font-medium text-cream">{displayName}</p>
             <p className="truncate text-xs text-muted">
               Financial Health: <span className="text-orange-soft">{health.label}</span>
             </p>

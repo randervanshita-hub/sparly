@@ -5,10 +5,11 @@ import { useProfile } from '../context/ProfileContext'
 import { formatINR } from '../../hooks/useCountUp'
 
 export function Settings() {
-  const { profile, resetOnboarding, logout } = useProfile()
+  const { profile, resetOnboarding, logout, session } = useProfile()
   const navigate = useNavigate()
 
   const fields = [
+    { label: 'Email', value: session?.user.email ?? '—' },
     { label: 'Monthly take-home income', value: `₹${formatINR(profile.takeHomeIncome)}` },
     { label: 'Income frequency', value: profile.incomeFrequency },
     { label: 'Current savings', value: `₹${formatINR(profile.currentSavings)}` },
@@ -48,8 +49,8 @@ export function Settings() {
 
       <div className="flex flex-wrap gap-3">
         <button
-          onClick={() => {
-            resetOnboarding()
+          onClick={async () => {
+            await resetOnboarding()
             navigate('/app/onboarding')
           }}
           className="rounded-full border border-hairline px-5 py-2.5 text-sm font-medium text-cream transition-colors hover:border-white/25"
@@ -57,9 +58,10 @@ export function Settings() {
           Redo onboarding
         </button>
         <button
-          onClick={() => {
-            logout()
+          onClick={async () => {
+            // See Sidebar's handleLogout for why navigate happens before logout.
             navigate('/')
+            await logout()
           }}
           className="flex items-center gap-2 rounded-full border border-hairline px-5 py-2.5 text-sm font-medium text-muted transition-colors hover:border-white/25 hover:text-cream"
         >

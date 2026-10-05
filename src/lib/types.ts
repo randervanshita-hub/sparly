@@ -147,7 +147,9 @@ export interface FinancialProfile {
   variableExpenses: number
   monthlyDebt: number
   emergencyFund: number
-  motivations: GoalMotivation[]
+  // string, not GoalMotivation[]: onboarding lets users type a free-text
+  // custom goal alongside the preset chips, so this is never a closed union.
+  motivations: string[]
   helpPreferences: HelpPreference[]
 }
 

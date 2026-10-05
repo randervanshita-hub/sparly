@@ -4,6 +4,7 @@ import { Send, Sparkles } from 'lucide-react'
 import { ChatBubble, TypingIndicator } from '../components/coach/ChatBubble'
 import { answerCoachPrompt } from '../../lib/aiCoach'
 import type { ChatMessage } from '../../lib/types'
+import { useProfile } from '../context/ProfileContext'
 
 const SUGGESTED_PROMPTS = [
   'Can I afford a ₹15,000 vacation?',
@@ -17,14 +18,15 @@ const SUGGESTED_PROMPTS = [
   'Should I pay off my loan faster or invest more?',
 ]
 
-const WELCOME: ChatMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content: "Hi Vanshita — I can see your income, spending and goals. Ask me anything about your money, or pick a question below.",
-}
-
 export function Coach() {
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
+  const { displayName } = useProfile()
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: `Hi ${displayName} — I can see your income, spending and goals. Ask me anything about your money, or pick a question below.`,
+    },
+  ])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const navigate = useNavigate()

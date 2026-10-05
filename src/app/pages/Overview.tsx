@@ -7,8 +7,10 @@ import { MiniCalendar } from '../components/dashboard/MiniCalendar'
 import { AllocationBar } from '../components/ui/AllocationBar'
 import { getFinancialHealth, getMoneyPlan } from '../../lib/financeEngine'
 import { getPersonalizedOpportunity } from '../../lib/aiCoach'
+import { useProfile } from '../context/ProfileContext'
 
 export function Overview() {
+  const { displayName } = useProfile()
   const plan = getMoneyPlan()
   const health = getFinancialHealth()
   const opportunity = getPersonalizedOpportunity()
@@ -18,7 +20,7 @@ export function Overview() {
   return (
     <div className="flex flex-col gap-8">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <h1 className="text-2xl font-semibold tracking-tight text-cream sm:text-3xl">{greeting}, Vanshita.</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-cream sm:text-3xl">{greeting}, {displayName}.</h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted sm:text-base">
           Here's what your money needs from you this month. {opportunity}
         </p>

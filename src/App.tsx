@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { ProfileProvider } from './app/context/ProfileContext'
 import { Landing } from './pages/Landing'
 import { AppEntry } from './app/pages/AppEntry'
+import { Auth } from './app/pages/Auth'
 import { Onboarding } from './app/pages/Onboarding'
 import { AppShell } from './app/components/layout/AppShell'
 import { Overview } from './app/pages/Overview'
@@ -22,6 +23,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/app" element={<AppEntry />} />
+        <Route path="/app/auth" element={<Auth />} />
         <Route path="/app/onboarding" element={<Onboarding />} />
         <Route element={<AppShell />}>
           <Route path="/app/overview" element={<Overview />} />

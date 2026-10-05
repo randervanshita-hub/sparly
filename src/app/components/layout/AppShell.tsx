@@ -1,9 +1,15 @@
-import { Outlet } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { MobileNav } from './MobileNav'
+import { useProfile } from '../../context/ProfileContext'
 
 export function AppShell() {
+  const { session, loading } = useProfile()
+
+  if (loading) return null
+  if (!session) return <Navigate to="/app/auth" replace />
+
   return (
     <div className="min-h-screen bg-bg">
       <Sidebar />

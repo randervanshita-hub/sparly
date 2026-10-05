@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, ArrowLeft, Check, Sparkles } from 'lucide-react'
 import { Logo } from '../../components/Logo'
@@ -49,10 +49,11 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
 }
 
 export function Onboarding() {
-  const { completeOnboarding } = useProfile()
+  const { completeOnboarding, session, loading } = useProfile()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [custom, setCustom] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const [form, setForm] = useState<FinancialProfile>({
     takeHomeIncome: 80000,
@@ -83,14 +84,18 @@ export function Onboarding() {
 
   const addCustomGoal = () => {
     if (!custom.trim()) return
-    setForm((f) => ({ ...f, motivations: [...f.motivations, custom.trim() as GoalMotivation] }))
+    setForm((f) => ({ ...f, motivations: [...f.motivations, custom.trim()] }))
     setCustom('')
   }
 
-  const finish = () => {
-    completeOnboarding(form)
+  const finish = async () => {
+    setSubmitting(true)
+    await completeOnboarding(form)
     navigate('/app/overview')
   }
+
+  if (loading) return null
+  if (!session) return <Navigate to="/app/auth" replace />
 
   const essentials = Math.round(form.takeHomeIncome * 0.45)
   const savings = Math.round(form.takeHomeIncome * 0.2)
@@ -254,9 +259,10 @@ export function Onboarding() {
         ) : (
           <button
             onClick={finish}
-            className="flex items-center gap-2 rounded-full bg-orange px-6 py-2.5 text-sm font-semibold text-[#140a04] transition-transform hover:scale-[1.03]"
+            disabled={submitting}
+            className="flex items-center gap-2 rounded-full bg-orange px-6 py-2.5 text-sm font-semibold text-[#140a04] transition-transform hover:scale-[1.03] disabled:opacity-60"
           >
-            Go to my dashboard <ArrowRight size={15} />
+            {submitting ? 'Saving…' : 'Go to my dashboard'} <ArrowRight size={15} />
           </button>
         )}
       </div>
