@@ -68,37 +68,53 @@ async function insertRequest(supabaseUrl, serviceKey, row) {
   })
 }
 
+const RETRY_DELAYS_MS = [1000, 2500, 5000]
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 async function callGemini(apiKey, takeHome, spend) {
   const userPrompt = `Take-home pay: Rs.${takeHome}/month. Current monthly spend — Rent/Housing: Rs.${spend.rent}, Food & Groceries: Rs.${spend.food}, Transport: Rs.${spend.transport}, Shopping & Lifestyle: Rs.${spend.shopping}, Other: Rs.${spend.other}. Give me my one-month Sparly plan.`
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ parts: [{ text: userPrompt }] }],
-      generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
-    }),
+  const requestBody = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ parts: [{ text: userPrompt }] }],
+    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
   })
 
-  if (!res.ok) {
+  let lastError
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
+      body: requestBody,
+    })
+
+    if (res.ok) {
+      const body = await res.json()
+      const candidate = body.candidates && body.candidates[0]
+      const text = candidate && candidate.content && candidate.content.parts
+        ? candidate.content.parts.map((p) => p.text || '').join('')
+        : ''
+      const usage = body.usageMetadata || {}
+      return {
+        text,
+        inputTokens: usage.promptTokenCount || 0,
+        outputTokens: usage.candidatesTokenCount || 0,
+      }
+    }
+
     const errText = await res.text()
-    throw new Error(`Gemini API error ${res.status}: ${errText}`)
+    lastError = new Error(`Gemini API error ${res.status}: ${errText}`)
+    if ((res.status === 503 || res.status === 429) && attempt < RETRY_DELAYS_MS.length) {
+      await sleep(RETRY_DELAYS_MS[attempt])
+      continue
+    }
+    throw lastError
   }
-
-  const body = await res.json()
-  const candidate = body.candidates && body.candidates[0]
-  const text = candidate && candidate.content && candidate.content.parts
-    ? candidate.content.parts.map((p) => p.text || '').join('')
-    : ''
-  const usage = body.usageMetadata || {}
-
-  return {
-    text,
-    inputTokens: usage.promptTokenCount || 0,
-    outputTokens: usage.candidatesTokenCount || 0,
-  }
+  throw lastError
 }
 
 export default async function handler(req, res) {
@@ -171,6 +187,7 @@ export default async function handler(req, res) {
       remainingRequests: Math.max(REQUEST_CAP_PER_VISITOR - existingCount - 1, 0),
     })
   } catch (err) {
-    res.status(502).json({ error: 'upstream_error', message: String(err && err.message ? err.message : err) })
+    console.error('salary-plan error:', err)
+    res.status(502).json({ error: 'upstream_error', message: 'The planning assistant is busy right now. Please try again in a moment.' })
   }
 }
