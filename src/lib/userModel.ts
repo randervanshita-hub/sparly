@@ -50,16 +50,21 @@ export function buildGoals(profile: FinancialProfile, moneyPlan: MoneyPlanCatego
 
   return names.map((name) => {
     const template = GOAL_TEMPLATES[name] ?? FALLBACK_TEMPLATE
-    const targetAmount = Math.round(template.target(profile))
-    const currentAmount = Math.min(Math.round(template.current(profile)), targetAmount)
+    const id = `goal_${slugify(name)}`
+    const override = profile.goalOverrides[id]
+
+    const targetAmount = Math.round(override?.targetAmount ?? template.target(profile))
+    const currentAmount = Math.min(Math.round(override?.currentAmount ?? template.current(profile)), targetAmount)
+    const monthlyContribution = Math.round(override?.monthlyContribution ?? perGoalContribution)
+
     return {
-      id: `goal_${slugify(name)}`,
+      id,
       name,
       icon: template.icon,
       targetAmount,
       currentAmount,
       targetDate: '',
-      monthlyContribution: perGoalContribution,
+      monthlyContribution,
     } satisfies Goal
   })
 }

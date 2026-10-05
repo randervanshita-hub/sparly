@@ -66,6 +66,7 @@ export function Onboarding() {
     emergencyFund: 90000,
     motivations: [],
     helpPreferences: [],
+    goalOverrides: {},
   })
 
   const toggleMotivation = (m: GoalMotivation) => {

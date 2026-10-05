@@ -138,6 +138,15 @@ export type HelpPreference =
   | 'Help me reach my goals'
   | 'Give me an overall financial plan'
 
+// A user's manual edits to an auto-generated goal (see userModel.ts's
+// GOAL_TEMPLATES) — only the fields they've actually changed are stored;
+// anything absent keeps using the generated default.
+export interface GoalOverride {
+  targetAmount?: number
+  currentAmount?: number
+  monthlyContribution?: number
+}
+
 export interface FinancialProfile {
   takeHomeIncome: number
   incomeFrequency: IncomeFrequency
@@ -151,6 +160,7 @@ export interface FinancialProfile {
   // custom goal alongside the preset chips, so this is never a closed union.
   motivations: string[]
   helpPreferences: HelpPreference[]
+  goalOverrides: Record<string, GoalOverride>
 }
 
 export interface ChatMessage {

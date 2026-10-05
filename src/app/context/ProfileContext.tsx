@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabaseClient'
-import type { FinancialProfile } from '../../lib/types'
+import type { FinancialProfile, GoalOverride } from '../../lib/types'
 import { buildFinancialModel, type FinancialModel } from '../../lib/userModel'
 
 const DEFAULT_PROFILE: FinancialProfile = {
@@ -15,6 +15,7 @@ const DEFAULT_PROFILE: FinancialProfile = {
   emergencyFund: 90000,
   motivations: ['Build an emergency fund', 'Travel'],
   helpPreferences: ['Tell me how much I can safely spend', 'Give me an overall financial plan'],
+  goalOverrides: {},
 }
 
 interface ProfileRow {
@@ -29,6 +30,7 @@ interface ProfileRow {
   emergency_fund: number
   motivations: string[]
   help_preferences: string[]
+  goal_overrides: Record<string, GoalOverride> | null
 }
 
 function rowToProfile(row: ProfileRow): FinancialProfile {
@@ -43,6 +45,7 @@ function rowToProfile(row: ProfileRow): FinancialProfile {
     emergencyFund: Number(row.emergency_fund),
     motivations: row.motivations ?? [],
     helpPreferences: (row.help_preferences as FinancialProfile['helpPreferences']) ?? [],
+    goalOverrides: row.goal_overrides ?? {},
   }
 }
 
@@ -58,6 +61,7 @@ function profileToRow(p: FinancialProfile) {
     emergency_fund: p.emergencyFund,
     motivations: p.motivations,
     help_preferences: p.helpPreferences,
+    goal_overrides: p.goalOverrides,
   }
 }
 
@@ -72,6 +76,7 @@ interface ProfileContextValue {
   signUp: (email: string, password: string) => Promise<boolean>
   signIn: (email: string, password: string) => Promise<boolean>
   setProfile: (p: FinancialProfile) => Promise<void>
+  updateGoal: (goalId: string, override: GoalOverride) => Promise<void>
   completeOnboarding: (p: FinancialProfile) => Promise<void>
   resetOnboarding: () => Promise<void>
   logout: () => Promise<void>
@@ -151,6 +156,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     await supabase.from('profiles').update(profileToRow(p)).eq('id', session.user.id)
   }
 
+  // Merges into one goal's stored overrides (target/current amount, monthly
+  // contribution) without touching the rest of the profile or other goals.
+  const updateGoal = async (goalId: string, override: GoalOverride) => {
+    if (!session) return
+    const nextOverrides = { ...profile.goalOverrides, [goalId]: { ...profile.goalOverrides[goalId], ...override } }
+    setProfileState((p) => ({ ...p, goalOverrides: nextOverrides }))
+    await supabase.from('profiles').update({ goal_overrides: nextOverrides }).eq('id', session.user.id)
+  }
+
   const completeOnboarding = async (p: FinancialProfile) => {
     if (!session) return
     setProfileState(p)
@@ -194,6 +208,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         signUp,
         signIn,
         setProfile,
+        updateGoal,
         completeOnboarding,
         resetOnboarding,
         logout,

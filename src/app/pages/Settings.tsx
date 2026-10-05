@@ -1,43 +1,112 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, LogOut } from 'lucide-react'
+import { ShieldCheck, LogOut, Check } from 'lucide-react'
 import { PageHeader } from '../components/PageHeader'
 import { useProfile } from '../context/ProfileContext'
-import { formatINR } from '../../hooks/useCountUp'
+import type { FinancialProfile } from '../../lib/types'
+
+function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-sm text-muted">{label}</span>
+      <div className="flex items-center gap-2 rounded-xl border border-hairline bg-white/[0.02] px-4 py-3 focus-within:border-white/25">
+        <span className="text-cream/60">₹</span>
+        <input
+          type="number"
+          min={0}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full bg-transparent text-cream focus:outline-none"
+        />
+      </div>
+    </label>
+  )
+}
+
+type EditableField = Pick<
+  FinancialProfile,
+  'takeHomeIncome' | 'incomeFrequency' | 'currentSavings' | 'currentInvestments' | 'fixedExpenses' | 'variableExpenses' | 'monthlyDebt' | 'emergencyFund'
+>
 
 export function Settings() {
-  const { profile, resetOnboarding, logout, session } = useProfile()
+  const { profile, setProfile, resetOnboarding, logout, session } = useProfile()
   const navigate = useNavigate()
 
-  const fields = [
-    { label: 'Email', value: session?.user.email ?? '—' },
-    { label: 'Monthly take-home income', value: `₹${formatINR(profile.takeHomeIncome)}` },
-    { label: 'Income frequency', value: profile.incomeFrequency },
-    { label: 'Current savings', value: `₹${formatINR(profile.currentSavings)}` },
-    { label: 'Current investments', value: `₹${formatINR(profile.currentInvestments)}` },
-    { label: 'Fixed expenses', value: `₹${formatINR(profile.fixedExpenses)}` },
-    { label: 'Variable expenses', value: `₹${formatINR(profile.variableExpenses)}` },
-    { label: 'Monthly EMI / debt', value: `₹${formatINR(profile.monthlyDebt)}` },
-    { label: 'Emergency fund', value: `₹${formatINR(profile.emergencyFund)}` },
-  ]
+  const [form, setForm] = useState<EditableField>({
+    takeHomeIncome: profile.takeHomeIncome,
+    incomeFrequency: profile.incomeFrequency,
+    currentSavings: profile.currentSavings,
+    currentInvestments: profile.currentInvestments,
+    fixedExpenses: profile.fixedExpenses,
+    variableExpenses: profile.variableExpenses,
+    monthlyDebt: profile.monthlyDebt,
+    emergencyFund: profile.emergencyFund,
+  })
+  const [saving, setSaving] = useState(false)
+  const [savedPulse, setSavedPulse] = useState(false)
+
+  const changed = (Object.keys(form) as (keyof EditableField)[]).some((key) => form[key] !== profile[key])
+
+  const save = async () => {
+    setSaving(true)
+    await setProfile({ ...profile, ...form })
+    setSaving(false)
+    setSavedPulse(true)
+    window.setTimeout(() => setSavedPulse(false), 2500)
+  }
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader eyebrow="Settings" title="Your financial profile" subtitle="This is what Sparly uses to build your plan and recommendations." />
+      <PageHeader eyebrow="Settings" title="Your financial profile" subtitle="This is what Sparly uses to build your plan and recommendations. Update any number and save." />
 
       <div className="rounded-2xl border border-hairline bg-card p-6">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-          {fields.map((f) => (
-            <div key={f.label} className="flex items-center justify-between border-b border-hairline/60 pb-3 text-sm">
-              <span className="text-muted">{f.label}</span>
-              <span className="font-medium capitalize text-cream">{f.value}</span>
-            </div>
-          ))}
+        <p className="mb-1 text-sm font-medium text-cream">Signed in as</p>
+        <p className="mb-5 text-sm text-muted">{session?.user.email ?? '—'}</p>
+
+        <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+          <NumberField label="Monthly take-home income" value={form.takeHomeIncome} onChange={(v) => setForm((f) => ({ ...f, takeHomeIncome: v }))} />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm text-muted">Income frequency</span>
+            <select
+              value={form.incomeFrequency}
+              onChange={(e) => setForm((f) => ({ ...f, incomeFrequency: e.target.value as FinancialProfile['incomeFrequency'] }))}
+              className="rounded-xl border border-hairline bg-white/[0.02] px-4 py-3 text-cream focus:outline-none focus:border-white/25"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="biweekly">Bi-weekly</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </label>
+          <NumberField label="Current savings" value={form.currentSavings} onChange={(v) => setForm((f) => ({ ...f, currentSavings: v }))} />
+          <NumberField label="Current investments" value={form.currentInvestments} onChange={(v) => setForm((f) => ({ ...f, currentInvestments: v }))} />
+          <NumberField label="Monthly fixed expenses" value={form.fixedExpenses} onChange={(v) => setForm((f) => ({ ...f, fixedExpenses: v }))} />
+          <NumberField label="Monthly variable expenses" value={form.variableExpenses} onChange={(v) => setForm((f) => ({ ...f, variableExpenses: v }))} />
+          <NumberField label="EMIs / monthly debt" value={form.monthlyDebt} onChange={(v) => setForm((f) => ({ ...f, monthlyDebt: v }))} />
+          <NumberField label="Emergency fund" value={form.emergencyFund} onChange={(v) => setForm((f) => ({ ...f, emergencyFund: v }))} />
+        </div>
+
+        <div className="mt-6 flex items-center gap-3">
+          <button
+            onClick={save}
+            disabled={!changed || saving}
+            className="rounded-full bg-orange px-5 py-2.5 text-sm font-semibold text-[#140a04] transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          >
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+          {savedPulse && (
+            <p className="flex items-center gap-1.5 text-sm text-orange-soft">
+              <Check size={14} /> Saved — your plan has been updated
+            </p>
+          )}
         </div>
       </div>
 
       <div className="rounded-2xl border border-hairline bg-card p-6">
         <p className="mb-1 text-sm font-medium text-cream">Goals &amp; priorities</p>
-        <p className="mb-4 text-xs text-muted">What you told us during onboarding.</p>
+        <p className="mb-4 text-xs text-muted">
+          What you told us during onboarding. To change your goal targets or monthly contributions, edit them directly
+          on the Goals page.
+        </p>
         <div className="flex flex-wrap gap-2">
           {[...profile.motivations, ...profile.helpPreferences].map((m) => (
             <span key={m} className="rounded-full border border-hairline bg-white/[0.03] px-3.5 py-1.5 text-xs text-muted">
